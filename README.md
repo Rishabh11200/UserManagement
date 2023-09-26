@@ -7,7 +7,8 @@ This project uses the following environment variables:
 | ----------------------------- | ------------------------------------| -----------------------------------------------|
 |URL           | MongoDB connection url values            | N/A      |
 |SESSIONKEY           | Cookie session key            | N/A      |
-|SECRET           | JWT signing key            | N/A      |
+|ACCESSSECRET           | JWT Access token signing key            | N/A      |
+|REFRESHSECRET           | JWT Refresh token signing key            | N/A      |
 
 
 # Pre-requisites

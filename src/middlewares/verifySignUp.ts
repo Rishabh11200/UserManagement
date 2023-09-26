@@ -1,9 +1,8 @@
-import { db } from "../models";
+import { User, db } from "../models";
 import { Request, Response } from "express";
 import { validatePassword } from "../constants";
 
 const ROLES = db.allRoles;
-const User = db.user;
 
 export const checkDuplicateUsernameOrEmail = async (
   req: Request,

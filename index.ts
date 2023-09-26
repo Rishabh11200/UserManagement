@@ -52,12 +52,6 @@ app.get("/", (req: Request, res: Response) => {
 
 Routes(app);
 
-// Global error handler
-app.use((err: Error, req: Request, res: Response) => {
-  console.error(err.stack);
-  res.status(500).json({ message: `Something went wrong! Error: ${err}` });
-});
-
 // Star the server
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {

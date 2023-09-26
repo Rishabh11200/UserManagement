@@ -6,6 +6,7 @@ export interface IUser extends Document {
   email: string;
   password: string;
   roles: IRole["_id"];
+  tokens: string[];
 }
 export const userSchema: Schema = new Schema({
   username: { type: String },
@@ -17,6 +18,7 @@ export const userSchema: Schema = new Schema({
       ref: "Role",
     },
   ],
+  tokens: [{ type: String }],
 });
 
 export const User = mongoose.model<IUser>("User", userSchema);

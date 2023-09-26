@@ -1,12 +1,10 @@
-import { SECRET } from "../config/auth.config";
-import { db } from "../models";
+import { ACCESSSECRET, REFRESHSECRET } from "../config/auth.config";
+import { User } from "../models";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { Request, Response } from "express";
-import { IRole } from "../models/role.model";
-
-const User = db.user;
-const Role = db.role;
+import moment from "moment";
+import { Role } from "../models/role.model";
 
 export const signup = async (req: Request, res: Response) => {
   try {
@@ -38,45 +36,42 @@ export const signup = async (req: Request, res: Response) => {
 
 export const signin = async (req: Request, res: Response) => {
   try {
-    const user = await User.findOne({ username: req.body.username })
-      .populate("roles", "-__v")
-      .catch((err: any) => {
-        return res.status(500).send({
-          message: err || "An error occurred while finding the user!",
-        });
-      });
+    const user = await User.findOne({ username: req.body.username }).populate(
+      "roles",
+      "-__v"
+    );
 
     if (!user) {
       return res.status(404).send({ message: "User Not found." });
     }
-    const username = user.get("username");
-    const password = user.get("password");
-    const email = user.get("email");
-    const role = user.get("roles");
-    const userId = user.get("id");
+    const username = user.username;
+    const password = user.password;
+    const email = user.email;
+    const role = user.roles;
+    const userId = user.id;
     const passwordIsValid = bcrypt.compareSync(req.body.password, password);
 
     if (!passwordIsValid) {
       return res.status(401).send({ message: "Invalid Password!" });
     }
 
-    const token = jwt.sign({ id: userId }, SECRET, {
+    const refreshToken = jwt.sign({ id: userId }, REFRESHSECRET, {
       algorithm: "HS256",
-      expiresIn: 86400, // 24 hours
+      expiresIn: "5m",
+    });
+    const accessToken = jwt.sign({ id: userId }, ACCESSSECRET, {
+      algorithm: "HS256",
+      expiresIn: "1m",
     });
 
-    const authorities = role.map(
-      (role: IRole) => `ROLE_${role.name.toUpperCase()}`
-    );
+    user.tokens.push(refreshToken);
 
-    // @ts-ignore
-    req.session.token = token;
+    await user.save();
 
     res.status(200).send({
-      id: userId,
-      username: username,
-      email: email,
-      roles: authorities,
+      refreshToken: refreshToken,
+      accessTokenExpiresIn: moment().add(1, "m").toLocaleString(),
+      accessToken: accessToken,
     });
   } catch (error: any) {
     return res.status(500).send({
@@ -85,13 +80,55 @@ export const signin = async (req: Request, res: Response) => {
   }
 };
 
-export const signout = async (req: Request, res: Response) => {
+export const refreshToken = async (req: Request, res: Response) => {
   try {
-    req.session = null;
+    const oldRefreshToken: string | undefined = req.body.refreshToken;
+
+    if (!oldRefreshToken) {
+      return res.status(403).send({ message: "No token provided!" });
+    }
+
+    jwt.verify(oldRefreshToken, REFRESHSECRET, (err, decoded) => {
+      if (err) {
+        return res.status(401).send(err);
+      }
+
+      const accessToken = jwt.sign({ id: (decoded as any).id }, ACCESSSECRET, {
+        algorithm: "HS256",
+        expiresIn: "1m",
+      });
+
+      res.status(200).send({
+        accessTokenExpiresIn: moment().add(1, "m").toLocaleString(),
+        accessToken: accessToken,
+      });
+    });
+  } catch (error: any) {
+    return res.status(500).send({
+      message: `Error: ${
+        error.message || "An error occurred in refresh token."
+      }`,
+    });
+  }
+};
+
+export const signout = async (req: Request, res: Response) => {
+  const refreshToken = req.body.refreshToken;
+  try {
+    const user = await User.findById((req.params as any).userId);
+
+    if (!user)
+      return res.status(404).send({
+        message: `User not found!`,
+      });
+
+    user.tokens = user.tokens.filter((token) => token !== refreshToken);
+    await user.save();
+
     return res.status(200).send({ message: "You've been signed out!" });
   } catch (err: any) {
     return res
       .status(500)
-      .send({ message: err.message || "Error in Signin out1" });
+      .send({ message: err.message || "Error in Signin out!" });
   }
 };

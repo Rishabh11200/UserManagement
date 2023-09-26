@@ -1,6 +1,7 @@
 import { Express, Request, Response } from "express";
-import { verifySignIn, verifySignUp } from "../middlewares";
-import { signin, signout, signup } from "../controllers";
+import { verifySignIn, verifySignUp, verifySignOut } from "../middlewares";
+import { refreshToken, signin, signout, signup } from "../controllers";
+import { verifyToken } from "../middlewares/authjwt";
 
 export const authRoute = (app: Express) => {
   app.use(function (req: Request, res: Response, next: Function) {
@@ -21,5 +22,11 @@ export const authRoute = (app: Express) => {
 
   app.post("/api/auth/signin", [verifySignIn.checkAllSignInReq], signin);
 
-  app.post("/api/auth/signout", signout);
+  app.post("/api/auth/refresh", refreshToken);
+
+  app.post(
+    "/api/auth/signout",
+    [verifySignOut.checkAllSignOutReq, verifyToken],
+    signout
+  );
 };
